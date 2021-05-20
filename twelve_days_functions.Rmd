@@ -1,5 +1,6 @@
 ---
 title: "Lab: The 12 Days of Christmas"
+author: "Austin Berg"
 output:
   prettydoc::html_pretty:
     theme: tactile
@@ -8,7 +9,8 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE)
 
 # Packages for Functions
 library(dplyr)
@@ -46,34 +48,20 @@ the function takes a gift and returns the appropriate plural.
 
 pluralize_gift <- function(gift){
 
+gift_length <- str_length(gift)
+  
 gift <- gift %>%
-  str_replace()
+  str_pad(width = gift_length+1, side = "right", pad = "s") %>% 
+  str_replace_all(c("ooses" = "eese",
+                    "ys" = "ies"))
+
 
 return(gift)
 
 }
+
+
 ```
-
-*Hint 1:* Note that the gifts on days six and nine have unusual pluralizations.
-You may assume that in other datasets, there will be no special cases besides
-these types.
-
-*Hint 2:*  The following small example may be useful to you:
-
-```{r, eval = TRUE}
-my_names <- c("Kimberly", "Trini", "Jason", "Billy", "Zach", "Tommy")
-
-my_names %>% 
-  str_replace("y$", "ies")
-```
-
-
-**Important:**  You should **absolutely not** "hard-code" anything into this 
-function; this function should work in general, not just for the items in the
-12 Days of Christmas.  For example, the word "rings" should not appear anywhere
-in the function.  I should be able to give it any gift and any day, and get back
-the plural of that gift.
-
 
 ### Test Your Function
 
@@ -95,49 +83,32 @@ purrr::map_chr(xmas$Gift.Item, pluralize_gift)
 
 ## Step Two: Creating sentences
 
-Write a function called `make_phrase` that takes as input the necessary information, 
-and returns a phrase.  For example, 
-
-```{r}
-make_phrase(num = 10, 
-            num_word = "ten", 
-            item = "lords", 
-            verb = "a-leaping", 
-            adjective = "", 
-            location = "")
-```
-
-should return
-
-```
-"ten lords a-leaping"
-```
 
 ```{r}
 make_phrase <- function(num, num_word, item, verb, adjective, location) {
   
   ## Step 1: Replace NAs with blank strings
   verb <- str_replace_na(verb, "")
+  adjective <- str_replace_na(adjective, "")
+  location <- str_replace_na(location, "")
   
   ## Step 2: Pluralize the gift if needed
   ## Items with numbers larger than 1 should be pluralized
   ## Single items starting with a vowel should have "an" in front
   ## All other single items should have "a" in front
   
-  vowel_start <- str_sub(item, 1, 1) %>% str_detect(___)
+  vowel_start <- str_sub(item, 1, 1) %>% str_detect("[aeiou]")
   
-  if (___) {
+  if (num > 1) {
     
     item <- pluralize_gift(item)
     
-  } else if (vowel_start) {
-  
-      
+  } else if (vowel_start & num == 1) {
+    item <- paste('an ', item)
     
   } else {
-    
-    
-    
+    item <- paste('a ', item)
+    num_word <- 'and'
   }
   
   glue::glue("{num_word} {adjective} {item} {verb} {location}") %>%
@@ -158,11 +129,15 @@ to say `"twelve"` **not** `"twelfth"`. I suggest using the **english** package
 to create numbered days and then use those in your `pmap_chr()`!
 
 ```{r}
+library(english)
 xmas <- xmas %>%
   mutate(
-    Full.Phrase = pmap_chr(list(___), 
+    day_words = english::words(Day),
+    day_words = ifelse(day_words == "one", "and", day_words),
+    Full.Phrase = pmap_chr(list(Day, day_words, Gift.Item, 
+                                Verb, Adjective, Location), 
                            make_phrase)
-  )
+  ) 
 ```
 
 
@@ -190,49 +165,26 @@ sing_day <- function(dataset, line, phrase_col){
   
   # Step 1: Setup the intro line
   
-  num_word <- ____
+num_word <- as.character(english::ordinal(line))
   
   intro <- glue::glue("On the {num_word} day of Christmas")
   
   # Step 2: Sing the gift phrases
 
     phrases <- dataset %>% 
-      pull({{phrase_col}})
+      filter(Day <= line) %>% 
+      pull({{phrase_col}}) 
 
-  ????
+    gifts <- paste(rev(phrases), collapse = '\n')
     
   ## put it together
+    full_intro <- paste(intro, ', my true love sent to me,\n', sep = '')
     
-  ????
 
+  return(paste(full_intro, gifts, '\n', sep = ''))
 
 }
-
-
 ```
-
-For example,
-
-
-```{r}
-sing_line(xmas, 
-          num = 2, 
-          phrase_col = Full.Phrase)
-
-```
-
-should return
-
-```
-On the second day of Christmas, my true love sent to me,
-two turtle doves 
-and a partridge in a pear tree.
-```
-
-*Hint:*  The `{{phrase_col}}` part, which I provided for you, lets you use 
-column names as arguments to a function.  Don't delete that line of code!
-
----
 
 ## Step Four: Use Your Functions!
 
@@ -252,31 +204,9 @@ xmas2 <- xmas %>%
                            make_phrase)
   )
 
-map_chr(1:12, ~sing_line(xmas2, .x, Full.Phrase)) %>%
+map_chr(1:12, ~sing_day(xmas2, .x, Full.Phrase)) %>%
   str_c(collapse = "\n") %>%
   cat()
 
 ```
-
-
-## Step Five: Show Me Your Work! 
-
-#### Get it on GitHub
-
-Once you are done with all the functions, make sure you have **pushed** your
-work to GitHub.
-
-Make sure your repository contains your completed RMarkdown document and
-knitted HTML. 
-
-- Your HTML should **only** show the code for your functions and output from 
-testing / verifying that your functions perform as they should. 
-
-__If you used GitHub to store your work:__
-
-Submit the link to your GitHub repository in the Lab 8 assignment portal. 
-
-__If you downloaded the compressed folder and did not use GitHub:__
-
-Submit **both** your RMarkdown file and knitted HTML file
 
